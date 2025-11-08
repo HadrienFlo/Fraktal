@@ -6,45 +6,141 @@ showing results in the UI.
 from __future__ import annotations
 
 import dash
-from dash import html, dcc
+from dash import Dash, Input, Output, State, callback, clientside_callback, ALL, callback_context
+from dash_iconify import DashIconify
 import dash_mantine_components as dmc
-from dash.dependencies import Input, Output, State
 
-from fraktal import load_default_config, time_and_memory
+# from fraktal import load_default_config, time_and_memory
 
-# Create Dash app
-app = dash.Dash(__name__, external_stylesheets=[dmc.theme.DEFAULT_THEME])
+
+dash._dash_renderer._set_react_version("18.2.0")
+
+app = Dash(
+    __name__,
+    suppress_callback_exceptions=True,
+    use_pages=True,
+    title="Fraktal",
+)
 server = app.server
 
-config = load_default_config()
+theme_toggle = dmc.Switch(
+    offLabel=DashIconify(
+        icon="radix-icons:sun", width=20, color=dmc.DEFAULT_THEME["colors"]["yellow"][8]
+    ),
+    onLabel=DashIconify(
+        icon="radix-icons:moon",
+        width=20,
+        color=dmc.DEFAULT_THEME["colors"]["yellow"][6],
+    ),
+    id="color-scheme-toggle",
+    persistence=True,
+    persistence_type="session",
+    color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+    size="lg",
+    checked=True,
+)
 
 
-@time_and_memory()
-def run_heavy_calculation(n: int = 1000) -> dict:
-    # Placeholder calculation — in real project replace with fractal computation
-    total = 0
-    for i in range(n):
-        total += (i / (i + 1))
-    return {"n": n, "result": total}
+layout = dmc.AppShell(
+    [
+        dmc.AppShellHeader(
+            dmc.Group([
+                dmc.Group([
+                    dmc.Burger(
+                        id="mobile-burger",
+                        size="sm",
+                        hiddenFrom="sm",
+                        lineSize=3,
+                        opened=True,
+                        color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                    ),
+                    dmc.Burger(
+                        id="desktop-burger",
+                        size="sm",
+                        visibleFrom="sm",
+                        lineSize=3,
+                        opened=False,
+                        color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                    ),
+                    dmc.Title("Fraktal", c="blue", style={"margin-right": -16, "margin-left": 16}),
+                    # DashIconify(
+                    #     icon="material-symbols:graph-5",
+                    #     width=32,
+                    #     color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                    #     style={"margin-top": 4},
+                    # ),
+                ], h="100%", px="md"),
+                dmc.Group([
+                    theme_toggle,
+                ])
+            ], justify="space-between", style={"flex": 1}, h="100%", px="md")
+        ),
+        dmc.AppShellNavbar(
+            id="navbar",
+            children=[
+                *[
+                    dmc.NavLink(
+                        label=f"{page['name']}", href=page["relative_path"], id={"type": "navlink", "index": page["relative_path"]},
+                        variant="light",
+                        color=dmc.DEFAULT_THEME["colors"]["blue"][6],
+                        style={"fontWeight": "bold", "border-radius": "50px", "margin-bottom": "var(--mantine-spacing-sm)"},
+                    )
+                    for page in dash.page_registry.values()
+                ],
+            ],
+            p="md",
+        ),
+        dmc.AppShellMain(children=dash.page_container),
+    ],
+    header={"height": 60},
+    navbar={
+        "width": 300,
+        "breakpoint": "sm",
+        "collapsed": {"mobile": True, "desktop": False},
+    },
+    padding="md",
+    id="appshell",
+)
+
+app.layout = dmc.MantineProvider(
+    layout,
+    theme={"fontFamily": "Montserrat, sans-serif", "defaultRadius": "md"},
+)
 
 
-app.layout = dmc.Container([
-    dmc.Title(config.get("app", {}).get("title", "Fraktal App")),
-    dmc.Space(h=20),
-    dmc.NumberInput(id="input-n", label="Iterations", value=config.get("calculation", {}).get("iterations", 1000)),
-    dmc.Button("Run", id="run-btn"),
-    dmc.Space(h=10),
-    html.Div(id="output")
-], size="lg")
+@callback(
+    Output("appshell", "navbar"),
+    Input("mobile-burger", "opened"),
+    Input("desktop-burger", "opened"),
+    State("appshell", "navbar"),
+)
+def toggle_navbar(mobile_opened, desktop_opened, navbar):
+    navbar["collapsed"] = {
+        "mobile": not mobile_opened,
+        "desktop": not desktop_opened,
+    }
+    return navbar
 
 
-@app.callback(Output("output", "children"), Input("run-btn", "n_clicks"), State("input-n", "value"))
-def on_run(n_clicks, n):
-    if not n_clicks:
-        return "App ready. Click run to start calculation."
-    res = run_heavy_calculation(int(n or 1000))
-    return dmc.Prism(language="json", children=str(res))
+@app.callback(
+    Output({"type": "navlink", "index": ALL}, "active"), 
+    Input("_pages_location", "pathname")
+)
+def update_navlinks(pathname):
+    return [control["id"]["index"] == pathname for control in callback_context.outputs_list]
+
+
+clientside_callback(
+    """ 
+    (switchOn) => {
+       document.documentElement.setAttribute('data-mantine-color-scheme', switchOn ? 'dark' : 'light');  
+       return window.dash_clientside.no_update
+    }
+    """,
+    Output("color-scheme-toggle", "id"),
+    Input("color-scheme-toggle", "checked"),
+)
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)
