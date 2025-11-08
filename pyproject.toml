@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=42","wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fraktal"
+version = "0.0.1"
+description = "Fraktal library and Dash app"
+authors = [ { name = "Your Name" } ]
+license = { text = "MIT" }
+
+[tool.pytest]
+minversion = "6.0"

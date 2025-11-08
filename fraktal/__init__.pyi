@@ -1,0 +1,6 @@
+# Type stubs (optional)
+from typing import Dict, Any, Callable
+
+def load_default_config() -> Dict[str, Any]: ...
+
+def time_and_memory(log: Callable[[str], None] = ...) -> Callable: ...

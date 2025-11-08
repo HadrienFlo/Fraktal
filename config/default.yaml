@@ -1,0 +1,9 @@
+# Default configuration for Fraktal
+app:
+  title: Fraktal App
+  host: 127.0.0.1
+  port: 8050
+
+calculation:
+  iterations: 1000
+  threshold: 1e-6
