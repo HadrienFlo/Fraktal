@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: fraktal
+Version: 0.0.1
+Summary: Fraktal library and Dash app
+Author: HFlo
+License-Expression: MIT
+License-File: LICENSE
+Dynamic: license-file

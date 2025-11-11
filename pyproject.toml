@@ -1,3 +1,4 @@
+
 [build-system]
 requires = ["setuptools>=42","wheel"]
 build-backend = "setuptools.build_meta"
@@ -6,8 +7,11 @@ build-backend = "setuptools.build_meta"
 name = "fraktal"
 version = "0.0.1"
 description = "Fraktal library and Dash app"
-authors = [ { name = "Your Name" } ]
-license = { text = "MIT" }
+authors = [ { name = "HFlo" } ]
+license = "MIT"
+
+[tool.setuptools]
+packages = ["fraktal"]
 
 [tool.pytest]
 minversion = "6.0"
