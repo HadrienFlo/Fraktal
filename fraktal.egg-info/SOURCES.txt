@@ -4,7 +4,6 @@ pyproject.toml
 fraktal/__init__.py
 fraktal/config.py
 fraktal/decorators.py
-fraktal/mandelbrot.py
 fraktal.egg-info/PKG-INFO
 fraktal.egg-info/SOURCES.txt
 fraktal.egg-info/dependency_links.txt
