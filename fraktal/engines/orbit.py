@@ -40,16 +40,20 @@ def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2):
     return orbit, max_iterations
 
 
-def bailout_inequality(o: list[complex], bailout: float) -> tuple[float, float, float] | None:
-    """Return the triplets abs(z_N-1), M, abs(z_N).
-
-    Args:
-        orbit: list[complex], the orbit of points
-        threshold: float, the bailout threshold
-    Returns:
-        
+@njit
+def bailout_inequality(truncated_orbit: np.ndarray, N: int) -> int:
     """
-    if len(o) >= 2:
-        return abs(o[-2]), bailout, abs(o[-1])
-    return None
-
+    Numba-compatible: Given a truncated orbit and an index N, return the values satisfying the bailout inequality.
+    The bailout inequality states that:
+    abs(z_{N-1}) <= bailout < abs(z_N)
+    Args:
+        truncated_orbit: np.ndarray of complex numbers, the truncated orbit
+        N: int, index to check the bailout inequality
+    Returns:
+        tuple (abs(z_{N-1}), abs(z_N)) if N is valid, else None
+    """
+    if N <= 0 or N >= len(truncated_orbit):
+        return None
+    abs_prev = np.sqrt(truncated_orbit[N-1].real**2 + truncated_orbit[N-1].imag**2)
+    abs_curr = np.sqrt(truncated_orbit[N].real**2 + truncated_orbit[N].imag**2)
+    return abs_prev, abs_curr

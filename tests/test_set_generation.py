@@ -1,4 +1,4 @@
-from fraktal.engines.mandelbrot_set import mandelbrot_set, mandelbrot_set_numba
+from fraktal.engines.mandelbrot import mandelbrot_set, mandelbrot_set_numba
 import numpy as np
 import time
 # import matplotlib.pyplot as plt
