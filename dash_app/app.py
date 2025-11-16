@@ -65,12 +65,6 @@ layout = dmc.AppShell(
                         color=dmc.DEFAULT_THEME["colors"]["blue"][6],
                     ),
                     dmc.Title("Fraktal", c="blue", style={"margin-right": -16, "margin-left": 16}),
-                    # DashIconify(
-                    #     icon="material-symbols:graph-5",
-                    #     width=32,
-                    #     color=dmc.DEFAULT_THEME["colors"]["blue"][6],
-                    #     style={"margin-top": 4},
-                    # ),
                 ], h="100%", px="md"),
                 dmc.Group([
                     theme_toggle,
