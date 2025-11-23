@@ -12,14 +12,15 @@ from fraktal.engines.mandelbrot import mandelbrot_set_numba
 from fraktal.models.iteration_count import iteration_count
 from fraktal.engines.color_index import simple_index
 from fraktal.engines.palette import simple_palette
+from fraktal.mapping import FRAKTAL_MODELS
 
 dash.register_page(__name__, name="Mandelbrot")
 
 
-def generate_mandelbrot_image(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function=iteration_count, color_index_function=simple_index, palette_function=simple_palette):
+def generate_mandelbrot_image(xmin, xmax, ymin, ymax, width, height, max_iter, bailout=2, coloring_function=iteration_count, color_index_function=simple_index, palette_function=simple_palette):
     """Generate a Mandelbrot set image and return as base64 encoded PNG."""
     # Generate the Mandelbrot set
-    image_array = mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function, color_index_function, palette_function, bailout=2, p=2)
+    image_array = mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function, color_index_function, palette_function, bailout=bailout, p=2)
     
     # Convert to PIL Image
     img = Image.fromarray(image_array, 'RGB')
@@ -62,7 +63,23 @@ layout = dmc.Container(
                                             grow=True,
                                             mb="md",
                                         ),
-                                        
+
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Bailout:", fw=500),
+                                                dmc.NumberInput(
+                                                    id="bailout-input",
+                                                    value=2,
+                                                    min=1,
+                                                    max=10,
+                                                    step=0.1,
+                                                    style={"flex": 1},
+                                                ),
+                                            ],
+                                            grow=True,
+                                            mb="md",
+                                        ),
+
                                         dmc.Group(
                                             [
                                                 dmc.Text("Image Size:", fw=500),
@@ -93,6 +110,57 @@ layout = dmc.Container(
                                                         {"value": "zoom1", "label": "Zoom 1x"},
                                                         {"value": "zoom2", "label": "Zoom 2x"},
                                                         {"value": "zoom3", "label": "Zoom 3x"},
+                                                    ],
+                                                    style={"flex": 1},
+                                                ),
+                                            ],
+                                            grow=True,
+                                            mb="md",
+                                        ),
+
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Coloring model:", fw=500),
+                                                dmc.Select(
+                                                    id="coloring-model-select",
+                                                    value="iteration-count",
+                                                    data=[
+                                                        {"value": k, "label": FRAKTAL_MODELS["coloring"][k]["name"]}
+                                                        for k in FRAKTAL_MODELS["coloring"].keys()
+                                                    ],
+                                                    style={"flex": 1},
+                                                ),
+                                            ],
+                                            grow=True,
+                                            mb="md",
+                                        ),
+
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Color index model:", fw=500),
+                                                dmc.Select(
+                                                    id="color-index-model-select",
+                                                    value="simple-index",
+                                                    data=[
+                                                        {"value": k, "label": FRAKTAL_MODELS["color_index"][k]["name"]}
+                                                        for k in FRAKTAL_MODELS["color_index"].keys()
+                                                    ],
+                                                    style={"flex": 1},
+                                                ),
+                                            ],
+                                            grow=True,
+                                            mb="md",
+                                        ),
+
+                                        dmc.Group(
+                                            [
+                                                dmc.Text("Palette model:", fw=500),
+                                                dmc.Select(
+                                                    id="palette-model-select",
+                                                    value="simple-palette",
+                                                    data=[
+                                                        {"value": k, "label": FRAKTAL_MODELS["palette"][k]["name"]}
+                                                        for k in FRAKTAL_MODELS["palette"].keys()
                                                     ],
                                                     style={"flex": 1},
                                                 ),
@@ -172,13 +240,17 @@ ZOOM_REGIONS = {
     Output("mandelbrot-description", "children"),
     Input("generate-btn", "n_clicks"),
     State("max-iter-input", "value"),
+    State("bailout-input", "value"),
     State("image-size-select", "value"),
     State("region-select", "value"),
+    State("coloring-model-select", "value"),
+    State("color-index-model-select", "value"),
+    State("palette-model-select", "value"),
     prevent_initial_call=False,
 )
-def update_mandelbrot(n_clicks, max_iter, size, region):
+def update_mandelbrot(n_clicks, max_iter, bailout, size, region, coloring_model, color_index_model, palette_model):
     """Generate and display the Mandelbrot set."""
-    if max_iter is None or size is None or region is None:
+    if max_iter is None or bailout is None or size is None or region is None:
         error = dmc.Alert("Please fill in all parameters", color="red", title="Error")
         return error, ""
     
@@ -189,8 +261,13 @@ def update_mandelbrot(n_clicks, max_iter, size, region):
         # Get region bounds
         xmin, xmax, ymin, ymax = ZOOM_REGIONS.get(region, ZOOM_REGIONS["full"])
         
+        # Select coloring, color index, and palette functions based on user choice
+        coloring_function = FRAKTAL_MODELS["coloring"][coloring_model]["function"]
+        color_index_function = FRAKTAL_MODELS["color_index"][color_index_model]["function"]
+        palette_function = FRAKTAL_MODELS["palette"][palette_model]["function"]
+
         # Generate image
-        image_src = generate_mandelbrot_image(xmin, xmax, ymin, ymax, image_size, image_size, max_iter, coloring_function=iteration_count, color_index_function=simple_index, palette_function=simple_palette)
+        image_src = generate_mandelbrot_image(xmin, xmax, ymin, ymax, image_size, image_size, max_iter, bailout=bailout, coloring_function=coloring_function, color_index_function=color_index_function, palette_function=palette_function)
         
         image_element = html.Img(
             src=image_src,

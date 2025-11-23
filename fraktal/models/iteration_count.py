@@ -31,8 +31,8 @@ def continuous_iteration_count(truncated_orbit: np.ndarray, escape_time: int, ba
         float, continuous iteration count
     """
     N = escape_time
-    rN = abs(truncated_orbit[-1])
-    return N + (bailout**p - abs(rN))/(bailout**p - bailout)
+    rN = abs(truncated_orbit[N])
+    return N + 1 + (bailout**p - rN)/(bailout**p - bailout)
 
 @njit
 def smooth_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailout: float, p: float = 2.0) -> float:
@@ -47,5 +47,5 @@ def smooth_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailou
         float, smooth iteration count
     """
     N = escape_time
-    rN = abs(truncated_orbit[-1])
-    return N + 1 + np.log(np.log(bailout)/np.log(rN))/np.log(p)
+    rN = abs(truncated_orbit[N])
+    return N + 1 + (1/np.log(p)) * np.log(np.log(bailout)/np.log(rN))

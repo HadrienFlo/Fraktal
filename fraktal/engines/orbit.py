@@ -31,7 +31,7 @@ def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2):
     Numba-compatible: returns the full orbit as a preallocated array and the valid length.
     Returns the iteration count at which escape occurs (matching NumPy mandelbrot_set behavior).
     """
-    orbit = np.empty(max_iterations + 1, dtype=np.complex128)
+    orbit = np.empty(max_iterations + 1, dtype=np.complex64)
     for n in range(max_iterations + 1):
         orbit[n] = z
         z = z**p + c  # Compute next iteration first
