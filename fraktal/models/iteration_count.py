@@ -7,13 +7,45 @@ from numba import njit
 import numpy as np
 
 @njit
-def truncated_orbit_length(truncated_orbit: np.ndarray) -> int:
+def iteration_count(truncated_orbit: np.ndarray, escape_time: int) -> int:
     """
-    Numba-compatible function to get the length of a truncated orbit divided by 20.
+    Numba-compatible function to get the length of a truncated orbit.
     
     Args:
         truncated_orbit: np.ndarray of complex numbers, the truncated orbit
     Returns:
-        int, length of the truncated orbit divided by 20
+        int, length of the truncated orbit
     """
-    return len(truncated_orbit)/20
+    return escape_time
+
+@njit
+def continuous_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailout: float, p: float = 2.0) -> float:
+    """
+    Numba-compatible function to compute a continuous iteration count for smooth coloring.
+    
+    Args:
+        truncated_orbit: np.ndarray of complex numbers, the truncated orbit
+        bailout: float, the bailout radius
+        p: float, the power used in the fractal iteration (default is 2 for Mandelbrot)
+    Returns:
+        float, continuous iteration count
+    """
+    N = escape_time
+    rN = abs(truncated_orbit[-1])
+    return N + (bailout**p - abs(rN))/(bailout**p - bailout)
+
+@njit
+def smooth_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailout: float, p: float = 2.0) -> float:
+    """
+    Numba-compatible function to compute a smooth iteration count using logarithmic scaling.
+    
+    Args:
+        truncated_orbit: np.ndarray of complex numbers, the truncated orbit
+        bailout: float, the bailout radius
+        p: float, the power used in the fractal iteration (default is 2 for Mandelbrot)
+    Returns:
+        float, smooth iteration count
+    """
+    N = escape_time
+    rN = abs(truncated_orbit[-1])
+    return N + 1 + np.log(np.log(rN)/np.log(bailout))/np.log(p)

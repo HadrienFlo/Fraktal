@@ -57,3 +57,4 @@ def bailout_inequality(truncated_orbit: np.ndarray, N: int) -> int:
     abs_prev = np.sqrt(truncated_orbit[N-1].real**2 + truncated_orbit[N-1].imag**2)
     abs_curr = np.sqrt(truncated_orbit[N].real**2 + truncated_orbit[N].imag**2)
     return abs_prev, abs_curr
+

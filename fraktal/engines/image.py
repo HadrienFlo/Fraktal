@@ -44,18 +44,18 @@ def generate_fractal_image(xmin, xmax, ymin, ymax, width, height, max_iter, engi
     """
     return engine_function(xmin, xmax, ymin, ymax, width, height, max_iter, **kwargs)
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from fraktal.engines.mandelbrot import mandelbrot_set_numba, mandelbrot_set
+# if __name__ == "__main__":
+#     import matplotlib.pyplot as plt
+#     from fraktal.engines.mandelbrot import mandelbrot_set_numba, mandelbrot_set
 
-    # Example usage with Numba-accelerated Mandelbrot set
-    img_numba = generate_fractal_image(-2, 1, -1.5, 1.5, 800, 600, 100, mandelbrot_set_numba)
-    plt.imshow(img_numba)
-    plt.title("Mandelbrot Set (Numba)")
-    plt.show()
+#     # Example usage with Numba-accelerated Mandelbrot set
+#     img_numba = generate_fractal_image(-2, 1, -1.5, 1.5, 800, 600, 100, mandelbrot_set_numba)
+#     plt.imshow(img_numba)
+#     plt.title("Mandelbrot Set (Numba)")
+#     plt.show()
 
-    # Example usage with NumPy vectorized Mandelbrot set
-    img_numpy = generate_fractal_image(-2, 1, -1.5, 1.5, 800, 600, 100, mandelbrot_set)
-    plt.imshow(img_numpy)
-    plt.title("Mandelbrot Set (NumPy)")
-    plt.show()
+#     # Example usage with NumPy vectorized Mandelbrot set
+#     img_numpy = generate_fractal_image(-2, 1, -1.5, 1.5, 800, 600, 100, mandelbrot_set)
+#     plt.imshow(img_numpy)
+#     plt.title("Mandelbrot Set (NumPy)")
+#     plt.show()
