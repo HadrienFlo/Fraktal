@@ -37,17 +37,22 @@ def mandelbrot_set(xmin, xmax, ymin, ymax, width, height, max_iter):
 
 
 @njit(parallel=True, fastmath=True)
-def mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function, p=2):
+def mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function, color_index_function, palette_function, bailout=2, p=2):
     """
-    Numba-accelerated Mandelbrot set generator using a given coloring function and f_numba.
+    Numba-accelerated Mandelbrot set generator using a given coloring function, color index function and palette_function.
     """
-    result = np.full((height, width), max_iter, dtype=np.int32)
+    result = np.full((height, width, 3), max_iter, dtype=np.uint8)
     for i in prange(height):
         for j in prange(width):
             c_real = xmin + j * (xmax - xmin) / (width - 1)
             c_imag = ymin + i * (ymax - ymin) / (height - 1)
             c = np.complex128(c_real + 1j * c_imag)
             z0 = np.complex128(0.0 + 0.0j)
-            returns = coloring_function(z0, c, max_iter, bailout=2.0, p=p)
-            result[i, j] = returns[-1]
+            o_T, escape_time = truncated_orbit_numba(z0, c, max_iter, bailout=bailout, p=p)
+            u = coloring_function(o_T, escape_time, bailout=bailout, p=p)
+            I = color_index_function(u, max_iter)
+            r, g, b = palette_function(I)
+            result[i, j, 0] = r
+            result[i, j, 1] = g
+            result[i, j, 2] = b    
     return result

@@ -7,7 +7,7 @@ from numba import njit
 import numpy as np
 
 @njit
-def iteration_count(truncated_orbit: np.ndarray, escape_time: int) -> int:
+def iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailout: float, p: float = 2.0) -> int:
     """
     Numba-compatible function to get the length of a truncated orbit.
     
@@ -48,4 +48,4 @@ def smooth_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailou
     """
     N = escape_time
     rN = abs(truncated_orbit[-1])
-    return N + 1 + np.log(np.log(rN)/np.log(bailout))/np.log(p)
+    return N + 1 + np.log(np.log(bailout)/np.log(rN))/np.log(p)

@@ -42,9 +42,9 @@ def generate_thumbnail(width: int = 200, height: int = 150, max_iter: int = 80):
     for i in range(height):
         for j in range(width):
             r, g, b = simple_palette(norm[i, j], k=2.5, u0=0)
-            img[i, j, 0] = int(r * 255)
-            img[i, j, 1] = int(g * 255)
-            img[i, j, 2] = int(b * 255)
+            img[i, j, 0] = r
+            img[i, j, 1] = g
+            img[i, j, 2] = b
     return _image_to_base64(img)
 
 

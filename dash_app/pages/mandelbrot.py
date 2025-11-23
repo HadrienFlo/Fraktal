@@ -9,29 +9,17 @@ import io
 import base64
 
 from fraktal.engines.mandelbrot import mandelbrot_set_numba
+from fraktal.models.iteration_count import iteration_count
+from fraktal.engines.color_index import simple_index
 from fraktal.engines.palette import simple_palette
 
 dash.register_page(__name__, name="Mandelbrot")
 
 
-def generate_mandelbrot_image(xmin, xmax, ymin, ymax, width, height, max_iter):
+def generate_mandelbrot_image(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function=iteration_count, color_index_function=simple_index, palette_function=simple_palette):
     """Generate a Mandelbrot set image and return as base64 encoded PNG."""
     # Generate the Mandelbrot set
-    mandelbrot_data = mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter)
-    
-    # Normalize the data to [0, 1] for coloring
-    normalized_data = mandelbrot_data / max_iter
-    
-    # Create RGB image
-    image_array = np.zeros((height, width, 3), dtype=np.uint8)
-    
-    # Apply simple palette to each pixel
-    for i in range(height):
-        for j in range(width):
-            r, g, b = simple_palette(normalized_data[i, j], k=2.5, u0=0)
-            image_array[i, j, 0] = int(r * 255)
-            image_array[i, j, 1] = int(g * 255)
-            image_array[i, j, 2] = int(b * 255)
+    image_array = mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, coloring_function, color_index_function, palette_function, bailout=2, p=2)
     
     # Convert to PIL Image
     img = Image.fromarray(image_array, 'RGB')
@@ -157,6 +145,7 @@ layout = dmc.Container(
                             radius="md",
                             withBorder=True,
                         ),
+                        html.Div(id="mandelbrot-description", style={"marginTop": "1rem"}),
                     ],
                     span={"base": 12, "sm": 8},
                 ),
@@ -180,6 +169,7 @@ ZOOM_REGIONS = {
 
 @callback(
     Output("mandelbrot-container", "children"),
+    Output("mandelbrot-description", "children"),
     Input("generate-btn", "n_clicks"),
     State("max-iter-input", "value"),
     State("image-size-select", "value"),
@@ -189,7 +179,8 @@ ZOOM_REGIONS = {
 def update_mandelbrot(n_clicks, max_iter, size, region):
     """Generate and display the Mandelbrot set."""
     if max_iter is None or size is None or region is None:
-        return dmc.Alert("Please fill in all parameters", color="red", title="Error")
+        error = dmc.Alert("Please fill in all parameters", color="red", title="Error")
+        return error, ""
     
     try:
         # Get image size
@@ -199,29 +190,30 @@ def update_mandelbrot(n_clicks, max_iter, size, region):
         xmin, xmax, ymin, ymax = ZOOM_REGIONS.get(region, ZOOM_REGIONS["full"])
         
         # Generate image
-        image_src = generate_mandelbrot_image(xmin, xmax, ymin, ymax, image_size, image_size, max_iter)
+        image_src = generate_mandelbrot_image(xmin, xmax, ymin, ymax, image_size, image_size, max_iter, coloring_function=iteration_count, color_index_function=simple_index, palette_function=simple_palette)
         
-        return [
-            html.Img(
-                src=image_src,
-                style={
-                    "maxWidth": "100%",
-                    "height": "auto",
-                    "borderRadius": "8px",
-                },
-            ),
-            dmc.Text(
-                f"Max iterations: {max_iter} | Size: {image_size}x{image_size} | Region: {region}",
-                size="sm",
-                # color="dimmed",
-                mt="md",
-                ta="center",
-            ),
-        ]
+        image_element = html.Img(
+            src=image_src,
+            style={
+                "maxWidth": "100%",
+                "height": "auto",
+                "borderRadius": "8px",
+            },
+        )
+        
+        description = dmc.Text(
+            f"Max iterations: {max_iter} | Size: {image_size}x{image_size} | Region: {region}",
+            size="sm",
+            c="dimmed",
+            ta="center",
+        )
+        
+        return image_element, description
     
     except Exception as e:
-        return dmc.Alert(
+        error = dmc.Alert(
             f"Error generating image: {str(e)}",
             color="red",
             title="Error",
         )
+        return error, ""

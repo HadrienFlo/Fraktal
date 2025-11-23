@@ -17,6 +17,7 @@ def simple_palette(color_index: float, k: float = 2.5, u0: float = 0) -> tuple:
     Returns:
         tuple of (r, g, b), each in [0, 1]
     """
-    intensity = k * (color_index - u0)
-    intensity = max(0.0, min(1.0, intensity))  # Clamp to [0, 1]
+    # intensity = k * (color_index - u0)
+    # intensity = max(0.0, min(1.0, intensity))  # Clamp to [0, 1]
+    intensity = int(color_index * 255)
     return (intensity, intensity, intensity)
