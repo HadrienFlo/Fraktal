@@ -34,9 +34,9 @@ def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2):
     orbit = np.empty(max_iterations + 1, dtype=np.complex64)
     for n in range(max_iterations + 1):
         orbit[n] = z
-        z = z**p + c  # Compute next iteration first
+        z = z**p + c # Compute next iteration first
         if (z.real*z.real + z.imag*z.imag) > bailout**2:
-            return orbit, n  # Return the iteration index where escape happens
+            return orbit, n # Return the iteration index where escape happens
     return orbit, max_iterations
 
 
