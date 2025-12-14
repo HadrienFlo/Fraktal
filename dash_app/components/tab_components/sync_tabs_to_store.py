@@ -1,5 +1,13 @@
+import shutil
+from pathlib import Path
 import dash_mantine_components as dmc
 from dash import ALL, Input, Output, State, callback, callback_context, no_update, ctx
+
+
+def _get_tabs_base_dir():
+    """Get the base tabs directory."""
+    # This file is at dash_app/components/tab_components/sync_tabs_to_store.py
+    return Path(__file__).parents[2] / "tabs"
 
 
 def create_simple_tab(tab_id):
@@ -64,6 +72,14 @@ def delete_tab(n_clicks_list, tabs_data):
 
     if tab_id in tabs_data:
         print(f"Deleting tab: {tab_id}")
+        
+        # Delete the tab folder and all its contents
+        tab_folder = _get_tabs_base_dir() / tab_id
+        if tab_folder.exists():
+            shutil.rmtree(tab_folder)
+            print(f"Deleted folder: {tab_folder}")
+        
+        # Remove from store
         del tabs_data[tab_id]
 
     return tabs_data
