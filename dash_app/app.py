@@ -64,7 +64,7 @@ layout = dmc.AppShell(
                         opened=False,
                         color=dmc.DEFAULT_THEME["colors"]["blue"][6],
                     ),
-                    dmc.Title("Fraktal", c="blue", style={"margin-right": -16, "margin-left": 16}),
+                    dmc.Title("Fraktal", c="blue", style={"margin-right": -16, "margin-left": 16}, className="app-title"),
                 ], h="100%", px="md"),
                 dmc.Group([
                     theme_toggle,
