@@ -11,7 +11,9 @@ authors = [ { name = "HFlo" } ]
 license = "MIT"
 
 [tool.setuptools]
-packages = ["fraktal"]
+# Use setuptools package discovery to include all subpackages (engines, models, etc.)
+[tool.setuptools.packages.find]
+include = ["fraktal*"]
 
 [tool.pytest]
 minversion = "6.0"
