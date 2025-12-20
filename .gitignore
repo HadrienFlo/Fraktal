@@ -29,3 +29,23 @@ venv/
 
 # Dash app tabs storage (user-generated data)
 dash_app/tabs/
+
+# Packaging / build artifacts
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-wheel-metadata/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.so
+
+# Local env
+env/
+venv/
+.venv/
+
+# Editor / OS files
+.DS_Store
