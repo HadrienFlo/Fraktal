@@ -7,3 +7,13 @@ app:
 calculation:
   iterations: 1000
   threshold: 1e-6
+
+mandelbrot:
+  tab_name: "Untitled"
+  center_x: -0.5
+  center_y: 0.0
+  zoom: 1.0
+  width: 800
+  height: 600
+  max_iter: 256
+  fractal_type: "mandelbrot"

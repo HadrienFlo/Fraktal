@@ -1,31 +1,19 @@
 """Simple Mandelbrot page stub to restart from scratch."""
 
 import dash
-from dash import html, dcc
 import dash_mantine_components as dmc
+from dash import html, dcc
 
+from components.tab_components.mandelbrot_form import form as mandelbrot_form # noqa: F401
 from components.tab_components.render_tab_content import *  # noqa: F401
 from components.tab_components.add_tab_to_store import *  # noqa: F401
 from components.tab_components.sync_tabs_to_store import *  # noqa: F401
 
 dash.register_page(__name__, name="Mandelbrot")
 
-
-form = dmc.Container(
-    [
-        dmc.TextInput(label="This is a placeholder for the Mandelbrot form.", id="text-input", my=10),
-        dmc.Group([
-            dmc.Button("Submit", id="submit-button", variant="outline", my=10),
-            dmc.Button("Add Tab", id="add-tab-button", variant="outline", my=10),
-        ]),
-    ],
-    id="form-container",
-    size="sm", py="lg"
-)
-
 layout = dmc.Container([
     # Store for tabs data
-    dcc.Store(id="tabs-store", data={"form-tab": form}),
+    dcc.Store(id="tabs-store", data={"form-tab": mandelbrot_form}, storage_type="session"),
     # 
     dmc.Title("Mandelbrot", order=1, mt="lg", mb="lg"),
     # Tabs component

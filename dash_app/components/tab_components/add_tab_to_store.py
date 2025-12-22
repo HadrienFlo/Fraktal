@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import dash_mantine_components as dmc
 from dash import Input, Output, State, callback, no_update
+from fraktal.config import load_default_config
+from components.tab_components.generate_tab_content import generate_fractal_tab_content
 
 
 def _get_tabs_base_dir():
@@ -16,11 +18,22 @@ def _get_tabs_base_dir():
     Output("tabs", "value", allow_duplicate=True),
     Input("add-tab-button", "n_clicks"),
     State("tabs-store", "data"),
+    State("tab-name-input", "value"),
+    State("center-x-input", "value"),
+    State("center-y-input", "value"),
+    State("zoom-input", "value"),
+    State("width-input", "value"),
+    State("height-input", "value"),
+    State("max-iter-input", "value"),
     prevent_initial_call=True,
 )
-def add_tab_to_store(n_clicks, tabs_data):
+def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, width, height, max_iter):
     if not n_clicks or not tabs_data:
         return no_update
+    
+    # Load default configuration
+    config = load_default_config()
+    mandelbrot_defaults = config.get('mandelbrot', {})
     
     # Create a new tab ID
     new_tab_id = str(uuid.uuid4())
@@ -32,22 +45,25 @@ def add_tab_to_store(n_clicks, tabs_data):
     # Save input data to JSON file
     inputs_data = {
         "tab_id": new_tab_id,
-        "created_at": str(uuid.uuid4()),  # Placeholder - you can add timestamp or actual inputs
-        # Add your actual input parameters here when you have them
-        # e.g., "max_iter": 100, "bailout": 2, etc.
+        "tab_name": tab_name or mandelbrot_defaults.get('tab_name', 'Untitled'),
+        "center_x": center_x if center_x is not None else mandelbrot_defaults.get('center_x', -0.5),
+        "center_y": center_y if center_y is not None else mandelbrot_defaults.get('center_y', 0.0),
+        "zoom": zoom if zoom is not None else mandelbrot_defaults.get('zoom', 1.0),
+        "width": width if width is not None else mandelbrot_defaults.get('width', 800),
+        "height": height if height is not None else mandelbrot_defaults.get('height', 600),
+        "max_iter": max_iter if max_iter is not None else mandelbrot_defaults.get('max_iter', 256),
+        "fractal_type": mandelbrot_defaults.get('fractal_type', 'mandelbrot'),
     }
     
     json_file = tab_folder / f"{new_tab_id}.json"
     with open(json_file, 'w', encoding='utf-8') as f:
         json.dump(inputs_data, f, indent=2)
     
-    # Create tab content
-    new_tab_content = dmc.Container(
-        [
-            dmc.Text(f"This is the content of {new_tab_id}.", my=10),
-        ],
-        id=f"{new_tab_id}-container",
-        size="sm", py="lg"
+    # Generate tab content with fractal image
+    new_tab_content = generate_fractal_tab_content(
+        new_tab_id,
+        inputs_data["tab_name"],
+        inputs_data
     )
     
     # Add new tab to the store
