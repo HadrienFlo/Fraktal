@@ -25,9 +25,12 @@ def _get_tabs_base_dir():
     State("width-input", "value"),
     State("height-input", "value"),
     State("max-iter-input", "value"),
+    State("coloring-function-input", "value"),
+    State("color-index-function-input", "value"),
+    State("palette-function-input", "value"),
     prevent_initial_call=True,
 )
-def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, width, height, max_iter):
+def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, width, height, max_iter, coloring_function, color_index_function, palette_function):
     if not n_clicks or not tabs_data:
         return no_update
     
@@ -53,6 +56,9 @@ def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, wi
         "height": height if height is not None else mandelbrot_defaults.get('height', 600),
         "max_iter": max_iter if max_iter is not None else mandelbrot_defaults.get('max_iter', 256),
         "fractal_type": mandelbrot_defaults.get('fractal_type', 'mandelbrot'),
+        "coloring_function": coloring_function or mandelbrot_defaults.get('coloring_function', 'smooth-iteration-count'),
+        "color_index_function": color_index_function or mandelbrot_defaults.get('color_index_function', 'simple-index'),
+        "palette_function": palette_function or mandelbrot_defaults.get('palette_function', 'simple-palette'),
     }
     
     json_file = tab_folder / f"{new_tab_id}.json"

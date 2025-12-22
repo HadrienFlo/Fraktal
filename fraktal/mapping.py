@@ -8,7 +8,7 @@ from fraktal.models.iteration_count import (
     smooth_iteration_count,
 )
 from fraktal.engines.color_index import simple_index
-from fraktal.engines.palette import simple_palette
+from fraktal.engines.palette import simple_palette, hot_palette, cool_palette
 
 FRAKTAL_MODELS = {
     "coloring": {
@@ -34,7 +34,15 @@ FRAKTAL_MODELS = {
     "palette": {
         "simple-palette": {
             "function": simple_palette,
-            "name": "Simple Palette",
+            "name": "Simple Palette (Grayscale)",
+        },
+        "hot-palette": {
+            "function": hot_palette,
+            "name": "Hot Palette (Red-Yellow-White)",
+        },
+        "cool-palette": {
+            "function": cool_palette,
+            "name": "Cool Palette (Cyan-Blue-Green)",
         },
     },
 }

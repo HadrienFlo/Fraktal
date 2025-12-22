@@ -17,3 +17,6 @@ mandelbrot:
   height: 600
   max_iter: 256
   fractal_type: "mandelbrot"
+  coloring_function: "smooth-iteration-count"
+  color_index_function: "simple-index"
+  palette_function: "simple-palette"

@@ -61,10 +61,15 @@ def generate_fractal_tab_content(tab_id: str, tab_name: str, inputs_data: dict) 
     ymin = center_y - view_height / 2
     ymax = center_y + view_height / 2
     
+    # Get selected functions from inputs_data
+    coloring_key = inputs_data.get('coloring_function', 'smooth-iteration-count')
+    color_index_key = inputs_data.get('color_index_function', 'simple-index')
+    palette_key = inputs_data.get('palette_function', 'simple-palette')
+    
     # Get coloring, color index, and palette functions from mapping
-    coloring_fn = FRAKTAL_MODELS['coloring']['smooth-iteration-count']['function']
-    color_index_fn = FRAKTAL_MODELS['color_index']['simple-index']['function']
-    palette_fn = FRAKTAL_MODELS['palette']['simple-palette']['function']
+    coloring_fn = FRAKTAL_MODELS['coloring'][coloring_key]['function']
+    color_index_fn = FRAKTAL_MODELS['color_index'][color_index_key]['function']
+    palette_fn = FRAKTAL_MODELS['palette'][palette_key]['function']
     
     # Generate the Mandelbrot set image
     img_array = mandelbrot_set_numba(

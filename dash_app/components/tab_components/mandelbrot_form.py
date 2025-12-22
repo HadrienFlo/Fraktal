@@ -1,5 +1,6 @@
 import dash_mantine_components as dmc
 from fraktal.config import load_default_config
+from fraktal.mapping import FRAKTAL_MODELS
 
 # Load default configuration
 config = load_default_config()
@@ -62,6 +63,36 @@ form = dmc.Container(
             min=10,
             max=10000,
             step=10,
+            my=10
+        ),
+        dmc.Select(
+            label="Coloring Function",
+            id="coloring-function-input",
+            value=mandelbrot_defaults.get('coloring_function', 'smooth-iteration-count'),
+            data=[
+                {"value": key, "label": val["name"]}
+                for key, val in FRAKTAL_MODELS["coloring"].items()
+            ],
+            my=10
+        ),
+        dmc.Select(
+            label="Color Index Function",
+            id="color-index-function-input",
+            value=mandelbrot_defaults.get('color_index_function', 'simple-index'),
+            data=[
+                {"value": key, "label": val["name"]}
+                for key, val in FRAKTAL_MODELS["color_index"].items()
+            ],
+            my=10
+        ),
+        dmc.Select(
+            label="Palette Function",
+            id="palette-function-input",
+            value=mandelbrot_defaults.get('palette_function', 'simple-palette'),
+            data=[
+                {"value": key, "label": val["name"]}
+                for key, val in FRAKTAL_MODELS["palette"].items()
+            ],
             my=10
         ),
         dmc.Group([
