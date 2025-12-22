@@ -545,6 +545,76 @@ if __name__ == "__main__":
 
 ---
 
+## Dash App Integration: Runtime Toggle
+
+The Fraktal Dash app includes a **toggle switch** that allows users to switch between Numba and Cython implementations at runtime.
+
+### Implementation Overview
+
+**UI Component** (`dash_app/components/tab_components/mandelbrot_form.py`):
+```python
+dmc.Switch(
+    label="Use Cython (instead of Numba)",
+    id="use-cython-switch",
+    checked=mandelbrot_defaults.get('use_cython', False),
+    description="Toggle between Cython and Numba implementations",
+    my=10
+),
+```
+
+**Backend Selection** (`dash_app/components/tab_components/generate_tab_content.py`):
+```python
+# Import both implementations
+from fraktal.engines.mandelbrot import mandelbrot_set_numba
+if CYTHON_AVAILABLE:
+    from fraktal.engines.mandelbrot_cy import mandelbrot_set_cython
+
+# Select based on user toggle
+if use_cython and mandelbrot_set_cython is not None:
+    mandelbrot_fn = mandelbrot_set_cython
+else:
+    mandelbrot_fn = mandelbrot_set_numba
+
+# Generate fractal with selected implementation
+img_array = mandelbrot_fn(xmin, xmax, ymin, ymax, width, height, max_iter,
+                         coloring_fn, color_index_fn, palette_fn,
+                         bailout=2.0, p=2)
+```
+
+### Cython Modules Created
+
+1. **`fraktal/engines/seed_cy.pyx`**: Cython seed function `f_cython(z, c, p)`
+2. **`fraktal/engines/orbit_cy.pyx`**: Cython orbit calculation `truncated_orbit_cython(...)`
+3. **`fraktal/engines/mandelbrot_cy.pyx`**: Full Cython Mandelbrot generator `mandelbrot_set_cython(...)`
+
+### Key Design Decisions
+
+- **Separate Implementations**: Numba and Cython can't be mixed in the same JIT-compiled function, so we created parallel implementations
+- **Graceful Fallback**: If Cython extensions aren't built, the app falls back to Numba automatically
+- **Type Handling**: Cython version uses `object` types for `u` and `I` to handle infinity and large values without overflow
+- **RGB Clamping**: Uses bitwise masking (`int(rgb[0]) & 0xFF`) to safely convert to uint8
+
+### Testing
+
+Run the toggle-specific tests:
+```bash
+pytest tests/test_dash_cython_toggle.py -v
+```
+
+This verifies:
+- ✓ Numba implementation works
+- ✓ Cython implementation works (if built)
+- ✓ Both produce equivalent results
+
+### Performance Comparison
+
+Users can directly compare performance by:
+1. Generating a fractal with Numba (toggle OFF)
+2. Generating the same fractal with Cython (toggle ON)
+3. Comparing render times in the UI
+
+---
+
 ## Further Reading
 
 - [Cython Documentation](https://cython.readthedocs.io/)

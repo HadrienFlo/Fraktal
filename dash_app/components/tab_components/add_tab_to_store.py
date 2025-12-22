@@ -28,9 +28,10 @@ def _get_tabs_base_dir():
     State("coloring-function-input", "value"),
     State("color-index-function-input", "value"),
     State("palette-function-input", "value"),
+    State("use-cython-switch", "checked"),
     prevent_initial_call=True,
 )
-def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, width, height, max_iter, coloring_function, color_index_function, palette_function):
+def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, width, height, max_iter, coloring_function, color_index_function, palette_function, use_cython):
     if not n_clicks or not tabs_data:
         return no_update
     
@@ -59,6 +60,7 @@ def add_tab_to_store(n_clicks, tabs_data, tab_name, center_x, center_y, zoom, wi
         "coloring_function": coloring_function or mandelbrot_defaults.get('coloring_function', 'smooth-iteration-count'),
         "color_index_function": color_index_function or mandelbrot_defaults.get('color_index_function', 'simple-index'),
         "palette_function": palette_function or mandelbrot_defaults.get('palette_function', 'simple-palette'),
+        "use_cython": use_cython if use_cython is not None else mandelbrot_defaults.get('use_cython', False),
     }
     
     json_file = tab_folder / f"{new_tab_id}.json"

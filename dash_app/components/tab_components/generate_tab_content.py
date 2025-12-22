@@ -9,7 +9,17 @@ import io
 import base64
 
 from fraktal.engines.mandelbrot import mandelbrot_set_numba
+from fraktal.engines.seed import CYTHON_AVAILABLE
 from fraktal.mapping import FRAKTAL_MODELS
+
+# Import Cython mandelbrot if available
+if CYTHON_AVAILABLE:
+    try:
+        from fraktal.engines.mandelbrot_cy import mandelbrot_set_cython
+    except ImportError:
+        mandelbrot_set_cython = None
+else:
+    mandelbrot_set_cython = None
 
 
 def _image_array_to_base64(img_array: np.ndarray) -> str:
@@ -65,14 +75,21 @@ def generate_fractal_tab_content(tab_id: str, tab_name: str, inputs_data: dict) 
     coloring_key = inputs_data.get('coloring_function', 'smooth-iteration-count')
     color_index_key = inputs_data.get('color_index_function', 'simple-index')
     palette_key = inputs_data.get('palette_function', 'simple-palette')
+    use_cython = inputs_data.get('use_cython', False)
     
     # Get coloring, color index, and palette functions from mapping
     coloring_fn = FRAKTAL_MODELS['coloring'][coloring_key]['function']
     color_index_fn = FRAKTAL_MODELS['color_index'][color_index_key]['function']
     palette_fn = FRAKTAL_MODELS['palette'][palette_key]['function']
     
+    # Select mandelbrot implementation
+    if use_cython and mandelbrot_set_cython is not None:
+        mandelbrot_fn = mandelbrot_set_cython
+    else:
+        mandelbrot_fn = mandelbrot_set_numba
+    
     # Generate the Mandelbrot set image
-    img_array = mandelbrot_set_numba(
+    img_array = mandelbrot_fn(
         xmin, xmax, ymin, ymax, 
         width, height, max_iter,
         coloring_fn, color_index_fn, palette_fn,

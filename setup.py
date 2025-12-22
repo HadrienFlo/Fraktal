@@ -10,6 +10,18 @@ extensions = [
         include_dirs=[np.get_include()],
         extra_compile_args=["-O3"] if not __import__("sys").platform.startswith("win") else ["/O2"],
     ),
+    Extension(
+        "fraktal.engines.orbit_cy",
+        ["fraktal/engines/orbit_cy.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"] if not __import__("sys").platform.startswith("win") else ["/O2"],
+    ),
+    Extension(
+        "fraktal.engines.mandelbrot_cy",
+        ["fraktal/engines/mandelbrot_cy.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"] if not __import__("sys").platform.startswith("win") else ["/O2"],
+    ),
 ]
 
 setup(

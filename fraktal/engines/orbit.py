@@ -26,15 +26,19 @@ def orbit(z: complex, f: callable, max_iterations: int, **kwargs) -> int:
     return res
 
 @njit
-def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2):
+def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2, seed_fn=None):
     """
     Numba-compatible: returns the full orbit as a preallocated array and the valid length.
     Returns the iteration count at which escape occurs (matching NumPy mandelbrot_set behavior).
+    
+    Args:
+        seed_fn: Not used in this version. Kept for compatibility.
     """
     orbit = np.empty(max_iterations + 1, dtype=np.complex64)
     for n in range(max_iterations + 1):
         orbit[n] = z
-        z = z**p + c # Compute next iteration first
+        # Always use z**p + c directly (Numba can't call Cython functions)
+        z = z**p + c
         if (z.real*z.real + z.imag*z.imag) > bailout**2:
             return orbit, n # Return the iteration index where escape happens
     return orbit, max_iterations
