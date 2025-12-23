@@ -19,7 +19,7 @@ cpdef cnp.ndarray[uint8, ndim=3] mandelbrot_set_cython(
     """
     Cython-optimized Mandelbrot set generator.
     """
-    cdef cnp.ndarray[uint8, ndim=3] result = np.full((height, width, 3), max_iter, dtype=np.uint8)
+    cdef cnp.ndarray[uint8, ndim=3] result = np.zeros((height, width, 3), dtype=np.uint8)
     cdef int i, j
     cdef double c_real, c_imag
     cdef complex128 c, z0
