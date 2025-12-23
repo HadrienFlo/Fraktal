@@ -1,5 +1,13 @@
 """Simple Mandelbrot page stub to restart from scratch."""
 
+import sys
+from pathlib import Path
+
+# Add dash_app directory to path for imports
+dash_app_path = Path(__file__).parent.parent
+if str(dash_app_path) not in sys.path:
+    sys.path.insert(0, str(dash_app_path))
+
 import dash
 import dash_mantine_components as dmc
 from dash import html, dcc

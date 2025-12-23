@@ -1,5 +1,6 @@
 """Generate tab content with fractal visualization."""
 
+import time
 import numpy as np
 import dash_mantine_components as dmc
 from dash import dcc
@@ -82,24 +83,34 @@ def generate_fractal_tab_content(tab_id: str, tab_name: str, inputs_data: dict) 
     color_index_fn = FRAKTAL_MODELS['color_index'][color_index_key]['function']
     palette_fn = FRAKTAL_MODELS['palette'][palette_key]['function']
     
+    # Get display names for models
+    coloring_name = FRAKTAL_MODELS['coloring'][coloring_key]['name']
+    color_index_name = FRAKTAL_MODELS['color_index'][color_index_key]['name']
+    palette_name = FRAKTAL_MODELS['palette'][palette_key]['name']
+    
     # Select mandelbrot implementation
     if use_cython and mandelbrot_set_cython is not None:
         mandelbrot_fn = mandelbrot_set_cython
+        implementation = "Cython"
     else:
         mandelbrot_fn = mandelbrot_set_numba
+        implementation = "Numba"
     
-    # Generate the Mandelbrot set image
+    # Generate the Mandelbrot set image and measure time
+    start_time = time.perf_counter()
     img_array = mandelbrot_fn(
         xmin, xmax, ymin, ymax, 
         width, height, max_iter,
         coloring_fn, color_index_fn, palette_fn,
         bailout=2.0, p=2
     )
+    end_time = time.perf_counter()
+    computation_time = end_time - start_time
     
     # Convert to base64
     img_data_url = _image_array_to_base64(img_array)
     
-    # Create tab content with image
+    # Create tab content with image and detailed information
     return dmc.Container(
         [
             dmc.Title(tab_name, order=3, mb="md"),
@@ -110,10 +121,24 @@ def generate_fractal_tab_content(tab_id: str, tab_name: str, inputs_data: dict) 
                     radius="md",
                     style={"maxWidth": "100%"},
                 ),
+                # Parameters info
                 dmc.Text(
                     f"Center: ({center_x:.6f}, {center_y:.6f}) | Zoom: {zoom:.2f}x | Iterations: {max_iter}",
                     size="sm",
                     c="dimmed",
+                ),
+                # Computation info
+                dmc.Group([
+                    dmc.Badge(f"{implementation}", color="blue", variant="light"),
+                    dmc.Badge(f"{computation_time:.3f}s", color="green", variant="light"),
+                    dmc.Badge(f"{width}×{height}", color="gray", variant="light"),
+                ], gap="xs"),
+                # Models info
+                dmc.Text(
+                    f"Coloring: {coloring_name} | Color Index: {color_index_name} | Palette: {palette_name}",
+                    size="xs",
+                    c="dimmed",
+                    style={"fontStyle": "italic"},
                 ),
             ], gap="sm"),
         ],
