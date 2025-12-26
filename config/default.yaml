@@ -20,3 +20,4 @@ mandelbrot:
   coloring_function: "smooth-iteration-count"
   color_index_function: "simple-index"
   palette_function: "simple-palette"
+  use_cython: false

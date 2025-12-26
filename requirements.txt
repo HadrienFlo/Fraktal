@@ -5,5 +5,6 @@ psutil>=5.0
 PyYAML>=6.0
 numpy>=1.22
 numba>=0.56
+Cython>=0.29.0
 matplotlib>=3.5
 dash-iconify>=0.1.2

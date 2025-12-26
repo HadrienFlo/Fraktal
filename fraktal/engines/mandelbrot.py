@@ -55,4 +55,5 @@ def mandelbrot_set_numba(xmin, xmax, ymin, ymax, width, height, max_iter, colori
             result[i, j, 0] = r
             result[i, j, 1] = g
             result[i, j, 2] = b    
+    return result    
     return result

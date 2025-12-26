@@ -95,6 +95,13 @@ form = dmc.Container(
             ],
             my=10
         ),
+        dmc.Switch(
+            label="Use Cython (instead of Numba)",
+            id="use-cython-switch",
+            checked=mandelbrot_defaults.get('use_cython', False),
+            description="Toggle between Cython and Numba implementations",
+            my=10
+        ),
         dmc.Group([
             dmc.Button("Add Tab", id="add-tab-button", variant="outline", my=10),
         ]),
