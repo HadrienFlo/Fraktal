@@ -48,6 +48,10 @@ pip-wheel-metadata/
 # Python bytecode / caches
 __pycache__/
 *.py[cod]
+
+# Jupyter Notebooks (keep local only)
+*.ipynb
+.ipynb_checkpoints/
 *.so
 
 # Local env
