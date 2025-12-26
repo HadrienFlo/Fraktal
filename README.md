@@ -1,6 +1,6 @@
 # Fraktal
 
-High-performance Python library + Dash app for exploring and generating beautiful fractal images, with a focus on the Mandelbrot set.
+High-performance Python library + Dash app for exploring and generating beautiful fractal images, with a focus on the Mandelbrot set. The home page is dedicated to give more explanations around the mathematical approach of fractal coloring techniques.
 
 ## Features
 
@@ -131,7 +131,7 @@ The Dash app includes a "Use Cython" toggle to compare implementations. Numba is
 ### Smooth Iteration Count (Recommended)
 Uses logarithmic smoothing to eliminate color banding:
 ```
-μ = N + 1 - log₂(log|z_N|)
+μ = N + 1 - log(log(r_N) / log(bailout)) / log(p)
 ```
 Perfect for high-quality renders with smooth gradients.
 
