@@ -1,6 +1,30 @@
 # Fraktal
 
-Small Python library + Dash app scaffold for Fraktal project.
+High-performance Python library + Dash app for exploring and generating beautiful fractal images, with a focus on the Mandelbrot set.
+
+## Features
+
+### 🗺️ **Interactive Explorer**
+- **Leaflet-based tile system** for smooth pan and zoom navigation
+- **Auto-adjusting iterations** - Automatically increases detail as you zoom in (100 × 1.3^zoom)
+- **Real-time rendering** with intelligent tile caching
+- **Multiple coloring methods**:
+  - Smooth (recommended) - Eliminates banding artifacts using logarithmic smoothing
+  - Continuous - Distance-based coloring for smooth gradients
+  - Basic Iteration - Classic discrete coloring
+- **Color palettes**: Hot, Cool, Simple
+- **Performance metrics** - Live iteration count display and cache monitoring
+
+### 🎨 **Image Generator**
+- Generate high-resolution fractal images
+- Customizable parameters (coordinates, zoom, iterations)
+- Multiple coloring algorithms and palettes
+- Export to PNG format
+
+### 📊 **Analysis Tools**
+- Orbit visualization - See the iteration path for any point
+- Interactive parameter exploration
+- Numba vs Cython performance comparison
 
 ## Setup (Windows / PowerShell)
 
@@ -37,6 +61,20 @@ pytest -q
 python -m dash_app.app
 ```
 
+Then open your browser to http://127.0.0.1:8050
+
+### Using the Explorer
+
+Navigate to the **Explorer** page (/explorer) for interactive fractal exploration:
+
+- **Pan**: Click and drag the map
+- **Zoom**: Use mouse wheel or zoom controls  
+- **Auto-adjust iterations**: Toggle on for automatic detail optimization based on zoom level
+- **Change coloring**: Try different methods (Smooth/Continuous/Basic) and palettes
+- **Performance**: Monitor iteration count and tile cache in real-time
+
+**Pro tip**: Zoom into the boundary of the Mandelbrot set to see incredible fractal detail!
+
 ## GitHub sync
 
 Initialize git, create a repo on GitHub and push:
@@ -54,37 +92,72 @@ Alternatively, use GitHub Desktop to create and push the repository.
 
 ## What is included
 
-- `fraktal/` : library package with `config` loader and `decorators`.
-  - Dual Numba/Cython implementation for performance-critical functions
-  - Toggle between JIT (Numba) and AOT (Cython) compilation
-- `dash_app/` : Dash app skeleton using `dash-mantine-components`.
-  - Interactive Mandelbrot fractal generator with real-time rendering
-  - **Cython/Numba toggle switch** to compare performance
-- `config/default.yaml` : default YAML configuration loaded by `fraktal`.
-- `tests/` : pytest tests for the basic components.
-- `requirements.txt`, `pyproject.toml`, `.gitignore`, `README.md`.
-- `setup.py` : Cython extension build configuration.
+- `fraktal/` : Core computation library with Numba-optimized rendering
+  - `engines/` : High-performance fractal generators (Numba + optional Cython)
+  - `models/` : Coloring algorithms (smooth, continuous, basic iteration count)
+- `dash_app/` : Dash web application
+  - `pages/explorer.py` : **Interactive Leaflet-based explorer with tile rendering**
+  - `pages/mandelbrot.py` : Image generator
+  - `pages/orbit.py` : Orbit visualization
+  - `components/` : Reusable UI components
+- `config/default.yaml` : Default YAML configuration
+- `tests/` : pytest tests and Jupyter notebooks
+- `docs/` : Comprehensive documentation
+  - `features/` : Feature documentation
+  - `maths/` : Mathematical explanations
+  - `cython-experiments/` : Performance analysis (Numba vs Cython)
+- `requirements.txt`, `pyproject.toml`, `.gitignore`, `README.md`
+- `setup_cython.py` : Optional Cython build configuration
 
 ## Performance: Numba vs Cython
 
-The Dash app includes a toggle switch to compare Numba (JIT compilation) vs Cython (ahead-of-time compilation) performance:
+**Numba wins by 100-500x** for numerical Python code:
 
-- **Numba (default)**: Just-In-Time compilation, no build step required
-- **Cython**: Ahead-of-time compilation, requires building extensions (see step 3)
+- **Numba**: ~0.01-0.02s per 256×256 tile (JIT compilation, LLVM optimization)
+- **Cython** (experimental): ~1.4-6.0s per tile (AOT compilation, limited cross-module optimization)
 
-Toggle the "Use Cython" switch in the Mandelbrot form to switch implementations and compare rendering times.
+**Why Numba wins:**
+- JIT compilation sees the entire call graph for aggressive inlining
+- LLVM backend provides superior numerical optimization  
+- Runtime type specialization
+- No build step required
 
-**📖 For detailed usage instructions, see [docs/dash-app-user-guide.md](docs/dash-app-user-guide.md)**
+The Dash app includes a "Use Cython" toggle to compare implementations. Numba is **strongly recommended** for this use case.
+
+**📖 For detailed analysis, see [docs/cython-experiments/cython-vs-numba-conclusion.md](docs/cython-experiments/cython-vs-numba-conclusion.md)**
+
+## Coloring Methods
+
+### Smooth Iteration Count (Recommended)
+Uses logarithmic smoothing to eliminate color banding:
+```
+μ = N + 1 - log₂(log|z_N|)
+```
+Perfect for high-quality renders with smooth gradients.
+
+### Continuous Iteration Count
+Distance-based coloring using the escaped orbit value:
+```
+μ = N + 1 - (|z_N|^p - bailout^p) / (|z_N|^p - bailout)
+```
+Good balance between smoothness and computational efficiency.
+
+### Basic Iteration Count
+Simple discrete iteration counting - classic fractal look with visible bands.
 
 ## Documentation
 
+- **[Leaflet Explorer Features](docs/features/)** - Interactive tile-based explorer
 - **[Dash App User Guide](docs/dash-app-user-guide.md)** - Complete guide to using the fractal generator
-- **[Cython Integration Guide](docs/cython-integration-guide.md)** - Technical details on Numba/Cython implementation
-- **[Cython Build Instructions](docs/cython-build-instructions.md)** - Platform-specific build setup
+- **[Cython vs Numba Analysis](docs/cython-experiments/)** - Performance comparison and technical details
+- **[Mathematics Documentation](docs/maths/)** - Fractal theory and algorithms
+- **[Cython Build Instructions](docs/cython-build-instructions.md)** - Platform-specific build setup (optional)
 
 ## Next steps (suggested)
 
-- Benchmark and compare Numba vs Cython performance for different image sizes
-- Implement additional fractal types (Julia sets, Burning Ship, etc.)
-- Improve logging configuration (structured logs, file handlers).
-- Add GitHub Actions workflow for CI (run tests and linting).
+- Add more fractal types (Julia sets, Burning Ship, Newton fractals)
+- Implement GPU acceleration with Numba CUDA
+- Add animation/video export capabilities
+- Bookmark favorite locations
+- Share fractal coordinates via URL parameters
+- Add GitHub Actions workflow for CI (run tests and linting)
