@@ -25,27 +25,45 @@ def continuous_iteration_count(truncated_orbit: np.ndarray, escape_time: int, ba
     
     Args:
         truncated_orbit: np.ndarray of complex numbers, the truncated orbit
+        escape_time: int, iteration at which escape occurred
         bailout: float, the bailout radius
         p: float, the power used in the fractal iteration (default is 2 for Mandelbrot)
     Returns:
         float, continuous iteration count
     """
     N = escape_time
-    rN = abs(truncated_orbit[N])
-    return N + 1 + (bailout**p - rN)/(bailout**p - bailout)
+    # Use the escaped value at N+1 (stored by truncated_orbit_numba)
+    rN = abs(truncated_orbit[N + 1])
+    
+    # If point didn't escape (at max_iter), return iteration count directly
+    if rN <= bailout:
+        return float(N)
+    
+    # Continuous fractional part based on how far beyond bailout the point is
+    return N + 1.0 - (rN**p - bailout**p) / (rN**p - bailout)
 
 @njit
 def smooth_iteration_count(truncated_orbit: np.ndarray, escape_time: int, bailout: float, p: float = 2.0) -> float:
     """
     Numba-compatible function to compute a smooth iteration count using logarithmic scaling.
+    This is the Renato formula: μ = n + 1 - log(log|z_n|) / log(p)
     
     Args:
         truncated_orbit: np.ndarray of complex numbers, the truncated orbit
+        escape_time: int, iteration at which escape occurred
         bailout: float, the bailout radius
         p: float, the power used in the fractal iteration (default is 2 for Mandelbrot)
     Returns:
         float, smooth iteration count
     """
     N = escape_time
-    rN = abs(truncated_orbit[N])
-    return N + 1 + (1/np.log(p)) * np.log(np.log(bailout)/np.log(rN))
+    # Use the escaped value at N+1 (stored by truncated_orbit_numba)
+    rN = abs(truncated_orbit[N + 1])
+    
+    # If point didn't escape (at max_iter), return iteration count directly
+    # The smooth formula only works for escaped points
+    if rN <= bailout:
+        return float(N)
+    
+    # Standard smooth iteration formula (Renato/Hubble formula)
+    return N + 1.0 - np.log(np.log(rN) / np.log(bailout)) / np.log(p)

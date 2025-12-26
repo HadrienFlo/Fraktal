@@ -1,7 +1,8 @@
 """Dynamic Fractal Explorer using Leaflet for smooth pan/zoom interaction."""
 
 import dash
-from dash import html, dcc, Input, Output, callback, callback_context, no_update
+from dash import html, dcc, Input, Output, State, callback, callback_context, no_update
+from dash.exceptions import PreventUpdate
 import dash_leaflet as dl
 import dash_mantine_components as dmc
 from flask import send_file
@@ -12,7 +13,7 @@ from PIL import Image
 from fraktal.engines.mandelbrot import mandelbrot_set_numba
 from fraktal.engines.palette import hot_palette, cool_palette, simple_palette
 from fraktal.engines.color_index import simple_index
-from fraktal.models.iteration_count import smooth_iteration_count
+from fraktal.models.iteration_count import smooth_iteration_count, continuous_iteration_count, iteration_count
 
 dash.register_page(__name__, name="Explorer", path="/explorer")
 
@@ -27,13 +28,20 @@ CURRENT_PARAMS = {
     'max_iter': 256,
     'palette': 'hot',
     'use_cython': False,
-    'auto_iter': True
+    'auto_iter': True,
+    'coloring_method': 'smooth'
 }
 
 PALETTE_FUNCTIONS = {
     'hot': hot_palette,
     'cool': cool_palette,
     'simple': simple_palette
+}
+
+COLORING_FUNCTIONS = {
+    'iteration': iteration_count,
+    'continuous': continuous_iteration_count,
+    'smooth': smooth_iteration_count
 }
 
 
@@ -97,6 +105,15 @@ layout = dmc.Container([
                             mb="sm"
                         ),
                         
+                        dmc.Badge(
+                            id='explorer-iter-display',
+                            children="256 iterations",
+                            color="grape",
+                            variant="light",
+                            size="lg",
+                            mb="xs"
+                        ),
+                        
                         dmc.Slider(
                             id='explorer-max-iter',
                             min=50,
@@ -122,6 +139,18 @@ layout = dmc.Container([
                                 {"value": "simple", "label": "Simple"},
                             ],
                             value="hot"
+                        ),
+                        
+                        dmc.Select(
+                            id='explorer-coloring',
+                            label="Coloring Method",
+                            data=[
+                                {"value": "smooth", "label": "Smooth (recommended)"},
+                                {"value": "continuous", "label": "Continuous"},
+                                {"value": "iteration", "label": "Basic Iteration"},
+                            ],
+                            value="smooth",
+                            description="Affects color gradient smoothness"
                         ),
                         
                         dmc.Switch(
@@ -214,9 +243,6 @@ def update_max_iter_from_zoom(zoom_level, auto_enabled):
     """
     print(f"update_max_iter_from_zoom called: zoom_level={zoom_level}, auto_enabled={auto_enabled}")
     
-    if not auto_enabled:
-        return no_update, False  # Enable manual slider
-    
     if zoom_level is None:
         zoom_level = 2
     
@@ -230,45 +256,59 @@ def update_max_iter_from_zoom(zoom_level, auto_enabled):
     
     print(f"Calculated max_iter: {calculated_iter}")
     
-    return calculated_iter, True  # Disable manual slider
+    if not auto_enabled:
+        return calculated_iter, False  # Enable manual slider
+    
+    return calculated_iter, True  # Disable slider, the badge will update via the next callback
 
 
-# Callback to update cache info and handle parameter changes
+# Update callback to handle parameter changes and badge display
 @callback(
     Output('explorer-cache-size', 'children'),
+    Output('explorer-iter-display', 'children'),
     Output('explorer-max-iter', 'value', allow_duplicate=True),
     Input('cache-update-interval', 'n_intervals'),
     Input('explorer-max-iter', 'value'),
     Input('explorer-palette', 'value'),
+    Input('explorer-coloring', 'value'),
     Input('explorer-use-cython', 'checked'),
     Input('explorer-auto-iter', 'checked'),
     prevent_initial_call=True
 )
-def update_info_and_params(n_intervals, max_iter, palette, use_cython, auto_iter):
+def update_info_and_params(n_intervals, max_iter, palette, coloring_method, use_cython, auto_iter):
     """Update cache display and handle parameter changes."""
     global CURRENT_PARAMS, TILE_CACHE, CURRENT_ZOOM_LEVEL
     
     triggered_id = callback_context.triggered[0]['prop_id'].split('.')[0] if callback_context.triggered else None
     
-    # Update parameters if they changed
-    if triggered_id in ['explorer-max-iter', 'explorer-palette', 'explorer-use-cython', 'explorer-auto-iter']:
-        CURRENT_PARAMS['max_iter'] = max_iter
+    # Use CURRENT_ZOOM_LEVEL which is updated by serve_tile
+    actual_zoom = CURRENT_ZOOM_LEVEL if CURRENT_ZOOM_LEVEL is not None else 2
+    
+    # Update parameters if they changed (but not on interval trigger)
+    if triggered_id in ['explorer-max-iter', 'explorer-palette', 'explorer-coloring', 'explorer-use-cython', 'explorer-auto-iter']:
         CURRENT_PARAMS['palette'] = palette
+        CURRENT_PARAMS['coloring_method'] = coloring_method
         CURRENT_PARAMS['use_cython'] = use_cython
         CURRENT_PARAMS['auto_iter'] = auto_iter
+        # Only update max_iter if not in auto mode
+        if not auto_iter:
+            CURRENT_PARAMS['max_iter'] = max_iter
         TILE_CACHE.clear()
+    
+    # Calculate the actual max_iter being used (same logic as serve_tile)
+    if CURRENT_PARAMS.get('auto_iter', True):
+        base_iter = 100
+        growth_rate = 1.3
+        actual_max_iter = int(base_iter * (growth_rate ** actual_zoom))
+        actual_max_iter = max(50, min(5000, actual_max_iter))
+        # Update CURRENT_PARAMS with the calculated value
+        CURRENT_PARAMS['max_iter'] = actual_max_iter
+    else:
+        actual_max_iter = CURRENT_PARAMS['max_iter']
     
     cache_size = len(TILE_CACHE)
     
-    # Calculate current max_iter based on zoom if auto mode
-    if auto_iter and CURRENT_ZOOM_LEVEL is not None:
-        base_iter = 100
-        growth_rate = 1.3
-        calculated_iter = int(base_iter * (growth_rate ** CURRENT_ZOOM_LEVEL))
-        calculated_iter = max(50, min(5000, calculated_iter))
-        return f"{cache_size} tiles (zoom {CURRENT_ZOOM_LEVEL})", calculated_iter
-    
-    return f"{cache_size} tiles cached", no_update
+    return f"{cache_size} tiles cached", f"{actual_max_iter} iterations", actual_max_iter
 
 
 # Flask route handler function (will be registered by app.py)
@@ -290,14 +330,17 @@ def serve_tile(z, x, y):
             growth_rate = 1.3
             max_iter = int(base_iter * (growth_rate ** z))
             max_iter = max(50, min(5000, max_iter))
+            # Update CURRENT_PARAMS so the badge callback can read it
+            CURRENT_PARAMS['max_iter'] = max_iter
         else:
             max_iter = CURRENT_PARAMS['max_iter']
         
         palette = CURRENT_PARAMS['palette']
         use_cython = CURRENT_PARAMS['use_cython']
+        coloring_method = CURRENT_PARAMS.get('coloring_method', 'smooth')
         
         # Create cache key
-        cache_key = f"{z}:{x}:{y}:{max_iter}:{palette}:{use_cython}"
+        cache_key = f"{z}:{x}:{y}:{max_iter}:{palette}:{coloring_method}:{use_cython}"
         
         # Return cached tile if available
         if cache_key in TILE_CACHE:
@@ -306,8 +349,9 @@ def serve_tile(z, x, y):
         # Generate tile bounds
         xmin, xmax, ymin, ymax = tile_to_bounds(x, y, z)
         
-        # Get palette function
+        # Get palette and coloring functions
         palette_fn = PALETTE_FUNCTIONS[palette]
+        coloring_fn = COLORING_FUNCTIONS[coloring_method]
         
         # Choose implementation and time it
         compute_start = time.perf_counter()
@@ -332,7 +376,7 @@ def serve_tile(z, x, y):
                     from fraktal.engines.mandelbrot_cy import mandelbrot_set_cython
                     img_array = mandelbrot_set_cython(
                         xmin, xmax, ymin, ymax, 256, 256, max_iter,
-                        smooth_iteration_count, simple_index, palette_fn
+                        coloring_fn, simple_index, palette_fn
                     )
                     compute_time = time.perf_counter() - compute_start
                     print(f"CYTHON-OLD tile z={z}, iter={max_iter}: {compute_time:.3f}s")
@@ -340,7 +384,7 @@ def serve_tile(z, x, y):
                     # Fallback to Numba if no Cython available
                     img_array = mandelbrot_set_numba(
                         xmin, xmax, ymin, ymax, 256, 256, max_iter,
-                        smooth_iteration_count, simple_index, palette_fn
+                        coloring_fn, simple_index, palette_fn
                     )
                     compute_time = time.perf_counter() - compute_start
                     print(f"NUMBA (fallback) tile z={z}, iter={max_iter}: {compute_time:.3f}s")
@@ -348,7 +392,7 @@ def serve_tile(z, x, y):
             # Generate Mandelbrot data with all required parameters
             img_array = mandelbrot_set_numba(
                 xmin, xmax, ymin, ymax, 256, 256, max_iter,
-                smooth_iteration_count, simple_index, palette_fn
+                coloring_fn, simple_index, palette_fn
             )
             compute_time = time.perf_counter() - compute_start
             print(f"NUMBA tile z={z}, iter={max_iter}: {compute_time:.3f}s")

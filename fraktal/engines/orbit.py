@@ -40,7 +40,11 @@ def truncated_orbit_numba(z, c, max_iterations, bailout=2.0, p=2, seed_fn=None):
         # Always use z**p + c directly (Numba can't call Cython functions)
         z = z**p + c
         if (z.real*z.real + z.imag*z.imag) > bailout**2:
-            return orbit, n # Return the iteration index where escape happens
+            # Store the escaped value at position n+1 for smooth coloring
+            # (only if there's room in the array)
+            if n + 1 <= max_iterations:
+                orbit[n + 1] = z
+            return orbit, n  # Return the iteration index where escape happens
     return orbit, max_iterations
 
 
