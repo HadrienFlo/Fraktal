@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 import io
 import base64
+from pathlib import Path
 
 from fraktal.engines.mandelbrot import mandelbrot_set
 from fraktal.engines.palette import simple_palette, hot_palette, cool_palette
@@ -36,6 +37,12 @@ def _image_to_base64(img_array: np.ndarray) -> str:
     buf.seek(0)
     data = base64.b64encode(buf.read()).decode()
     return f"data:image/png;base64,{data}"
+
+
+def load_markdown_content(filename: str) -> str:
+    """Load markdown content from the assets/content directory."""
+    content_path = Path(__file__).parent.parent / "assets" / "content" / filename
+    return content_path.read_text(encoding="utf-8")
 
 
 def generate_thumbnail(
@@ -99,24 +106,8 @@ layout = dmc.Container(
                             style={"whiteSpace": "pre-line"},
                         ),
 
-                        dcc.Markdown(r"""
-### A quick mathematical definition
-
-The Mandelbrot iteration is given by:
-
-$$
-z_{0} = 0, \quad z_{n+1} = z_n^2 + c
-$$
-
-The Mandelbrot set is the set of complex parameters $c$ for which the orbit of $z_0$ stays bounded:
-
-$$
-\mathcal{M} = \{ c \in \mathbb{C} : \sup_n |z_n| \le 2 \}\,.
-$$
-
-We color each point by the number of iterations needed to escape the bailout radius (or the maximum iteration count if it does not escape).
-
-""",
+                        dcc.Markdown(
+                            load_markdown_content("mandelbrot_definition.md"),
                             mathjax=True,
                         ),
 

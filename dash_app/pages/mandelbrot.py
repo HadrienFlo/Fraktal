@@ -1,5 +1,11 @@
 """Simple Mandelbrot page stub to restart from scratch."""
 
+import sys
+from pathlib import Path
+
+# Add parent directory to path to allow imports from components
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import dash
 import dash_mantine_components as dmc
 from dash import html, dcc
