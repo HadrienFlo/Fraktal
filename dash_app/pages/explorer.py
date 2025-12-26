@@ -1,13 +1,7 @@
 """Dynamic Fractal Explorer using Leaflet for smooth pan/zoom interaction."""
 
-import sys
-from pathlib import Path
-
-# Add parent directory to path to allow imports from components
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import dash
-from dash import html, Input, Output, callback
+from dash import html, dcc, Input, Output, callback, callback_context, no_update
 import dash_leaflet as dl
 import dash_mantine_components as dmc
 from flask import send_file
@@ -17,17 +11,23 @@ from PIL import Image
 
 from fraktal.engines.mandelbrot import mandelbrot_set_numba
 from fraktal.engines.palette import hot_palette, cool_palette, simple_palette
+from fraktal.engines.color_index import simple_index
+from fraktal.models.iteration_count import smooth_iteration_count
 
 dash.register_page(__name__, name="Explorer", path="/explorer")
 
 # In-memory tile cache (in production, consider Redis)
 TILE_CACHE = {}
 
+# Track current zoom level from tile requests
+CURRENT_ZOOM_LEVEL = 2
+
 # Current parameters (will be improved with proper state management)
 CURRENT_PARAMS = {
     'max_iter': 256,
     'palette': 'hot',
-    'use_cython': False
+    'use_cython': False,
+    'auto_iter': True
 }
 
 PALETTE_FUNCTIONS = {
@@ -50,18 +50,17 @@ def tile_to_bounds(x, y, z):
     """
     n = 2.0 ** z
     
-    # Full Mandelbrot view at z=0
-    real_min, real_max = -2.5, 1.5  # Wider view to show full set
-    imag_min, imag_max = -2.0, 2.0  # Square aspect ratio
-    
-    real_range = real_max - real_min
-    imag_range = imag_max - imag_min
+    # Use square aspect ratio for proper tile alignment
+    # Center on the interesting part of the Mandelbrot set
+    center_real = -0.5
+    center_imag = 0.0
+    total_range = 4.0  # Total view range (square)
     
     # Calculate bounds for this tile
-    xmin = real_min + (x / n) * real_range
-    xmax = real_min + ((x + 1) / n) * real_range
-    ymax = imag_max - (y / n) * imag_range  # Y is inverted in tile coords
-    ymin = imag_max - ((y + 1) / n) * imag_range
+    xmin = center_real - total_range/2 + (x / n) * total_range
+    xmax = center_real - total_range/2 + ((x + 1) / n) * total_range
+    ymin = center_imag - total_range/2 + (y / n) * total_range
+    ymax = center_imag - total_range/2 + ((y + 1) / n) * total_range
     
     return xmin, xmax, ymin, ymax
 
@@ -76,27 +75,41 @@ layout = dmc.Container([
         mb="md"
     ),
     
+    # Hidden interval component to update cache info
+    dcc.Interval(id='cache-update-interval', interval=1000, n_intervals=0),
+    
+    # Store to track current zoom level
+    dcc.Store(id='zoom-level-store', data=2),
+    
     dmc.Grid([
         # Left sidebar: Controls
         dmc.GridCol([
             dmc.Stack([
                 dmc.Card([
                     dmc.CardSection([
-                        dmc.Text("Parameters", weight=500, mb="sm"),
+                        dmc.Text("Parameters", fw=500, mb="sm"),
                     ]),
                     dmc.Stack([
+                        dmc.Switch(
+                            id='explorer-auto-iter',
+                            label="Auto-adjust iterations on zoom",
+                            checked=True,
+                            mb="sm"
+                        ),
+                        
                         dmc.Slider(
                             id='explorer-max-iter',
                             min=50,
-                            max=1000,
+                            max=5000,
                             step=50,
                             value=256,
                             label="Max Iterations",
+                            disabled=True,  # Disabled when auto mode is on
                             marks=[
                                 {"value": 50, "label": "50"},
-                                {"value": 250, "label": "250"},
-                                {"value": 500, "label": "500"},
-                                {"value": 1000, "label": "1000"}
+                                {"value": 1000, "label": "1K"},
+                                {"value": 2500, "label": "2.5K"},
+                                {"value": 5000, "label": "5K"}
                             ]
                         ),
                         
@@ -113,7 +126,7 @@ layout = dmc.Container([
                         
                         dmc.Switch(
                             id='explorer-use-cython',
-                            label="Use Cython (faster)",
+                            label="Use Cython (experimental - slower)",
                             checked=False
                         ),
                     ], gap="md")
@@ -121,12 +134,11 @@ layout = dmc.Container([
                 
                 dmc.Card([
                     dmc.CardSection([
-                        dmc.Text("View Info", weight=500, mb="sm"),
+                        dmc.Text("Cache Info", fw=500, mb="sm"),
                     ]),
                     dmc.Stack([
-                        dmc.Text(id='explorer-coords', size='sm', c="dimmed"),
-                        dmc.Text(id='explorer-zoom-level', size='sm', c="dimmed"),
-                        dmc.Badge(id='explorer-cache-size', color="gray", variant="light"),
+                        dmc.Badge(id='explorer-cache-size', color="blue", variant="light", size="lg"),
+                        dmc.Text("Use mouse wheel to zoom, drag to pan", size="xs", c="dimmed"),
                     ], gap="xs")
                 ], withBorder=True, p="md"),
                 
@@ -145,12 +157,13 @@ layout = dmc.Container([
                 dl.Map(
                     center=[0, 0],
                     zoom=2,
+                    viewport={'center': [0, 0], 'zoom': 2},
                     children=[
                         dl.TileLayer(
                             id='fractal-tiles',
                             url='/api/fractal-tiles/{z}/{x}/{y}',
                             minZoom=0,
-                            maxZoom=12,
+                            maxZoom=60,
                             tileSize=256,
                         ),
                     ],
@@ -165,119 +178,221 @@ layout = dmc.Container([
 ], fluid=True, size="xl")
 
 
-# Callback to update info display
-@callback(
-    Output('explorer-coords', 'children'),
-    Output('explorer-zoom-level', 'children'),
-    Output('explorer-cache-size', 'children'),
+# Clientside callback to track zoom level changes
+dash.clientside_callback(
+    """
+    function(viewport) {
+        if (viewport && viewport.zoom !== undefined) {
+            return viewport.zoom;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('zoom-level-store', 'data'),
     Input('explorer-map', 'viewport')
 )
-def update_info(viewport):
-    """Update coordinate display and zoom level."""
-    if not viewport:
-        return "Loading...", "Zoom: -", "Cache: 0 tiles"
-    
-    center = viewport.get('center', [0, 0])
-    zoom = viewport.get('zoom', 0)
-    
-    # Approximate conversion to complex coordinates
-    # (This is simplified - exact conversion would require tile math)
-    lat, lng = center
-    
-    cache_size = len(TILE_CACHE)
-    
-    return (
-        f"Center: ~{lng:.4f} + {lat:.4f}i",
-        f"Zoom Level: {zoom}",
-        f"Cache: {cache_size} tiles"
-    )
 
 
-# Callback to update parameters and clear cache
+# Callback to calculate max_iter based on zoom level
 @callback(
-    Output('explorer-map', 'children', allow_duplicate=True),
+    Output('explorer-max-iter', 'value'),
+    Output('explorer-max-iter', 'disabled'),
+    Input('zoom-level-store', 'data'),
+    Input('explorer-auto-iter', 'checked'),
+)
+def update_max_iter_from_zoom(zoom_level, auto_enabled):
+    """Calculate max_iter based on zoom level when auto mode is enabled.
+    
+    Formula: max_iter = 100 * (1.3 ^ zoom_level)
+    
+    This exponential relationship ensures:
+    - Zoom 0: ~100 iterations (whole Mandelbrot set)
+    - Zoom 3: ~220 iterations
+    - Zoom 6: ~470 iterations
+    - Zoom 9: ~1000 iterations
+    - Zoom 12: ~2200 iterations
+    """
+    print(f"update_max_iter_from_zoom called: zoom_level={zoom_level}, auto_enabled={auto_enabled}")
+    
+    if not auto_enabled:
+        return no_update, False  # Enable manual slider
+    
+    if zoom_level is None:
+        zoom_level = 2
+    
+    # Exponential formula: max_iter = base * (growth_rate ^ zoom)
+    base_iter = 100
+    growth_rate = 1.3
+    calculated_iter = int(base_iter * (growth_rate ** zoom_level))
+    
+    # Clamp to slider range
+    calculated_iter = max(50, min(5000, calculated_iter))
+    
+    print(f"Calculated max_iter: {calculated_iter}")
+    
+    return calculated_iter, True  # Disable manual slider
+
+
+# Callback to update cache info and handle parameter changes
+@callback(
+    Output('explorer-cache-size', 'children'),
+    Output('explorer-max-iter', 'value', allow_duplicate=True),
+    Input('cache-update-interval', 'n_intervals'),
     Input('explorer-max-iter', 'value'),
     Input('explorer-palette', 'value'),
     Input('explorer-use-cython', 'checked'),
+    Input('explorer-auto-iter', 'checked'),
     prevent_initial_call=True
 )
-def update_params(max_iter, palette, use_cython):
-    """Update parameters and clear tile cache."""
-    global CURRENT_PARAMS, TILE_CACHE
+def update_info_and_params(n_intervals, max_iter, palette, use_cython, auto_iter):
+    """Update cache display and handle parameter changes."""
+    global CURRENT_PARAMS, TILE_CACHE, CURRENT_ZOOM_LEVEL
     
-    CURRENT_PARAMS['max_iter'] = max_iter
-    CURRENT_PARAMS['palette'] = palette
-    CURRENT_PARAMS['use_cython'] = use_cython
+    triggered_id = callback_context.triggered[0]['prop_id'].split('.')[0] if callback_context.triggered else None
     
-    # Clear cache when parameters change
-    TILE_CACHE.clear()
+    # Update parameters if they changed
+    if triggered_id in ['explorer-max-iter', 'explorer-palette', 'explorer-use-cython', 'explorer-auto-iter']:
+        CURRENT_PARAMS['max_iter'] = max_iter
+        CURRENT_PARAMS['palette'] = palette
+        CURRENT_PARAMS['use_cython'] = use_cython
+        CURRENT_PARAMS['auto_iter'] = auto_iter
+        TILE_CACHE.clear()
     
-    # Force tile reload by returning new TileLayer with updated URL timestamp
-    import time
-    timestamp = int(time.time())
+    cache_size = len(TILE_CACHE)
     
-    return [
-        dl.TileLayer(
-            id='fractal-tiles',
-            url=f'/api/fractal-tiles/{{z}}/{{x}}/{{y}}?t={timestamp}',
-            minZoom=0,
-            maxZoom=12,
-            tileSize=256,
-        )
-    ]
+    # Calculate current max_iter based on zoom if auto mode
+    if auto_iter and CURRENT_ZOOM_LEVEL is not None:
+        base_iter = 100
+        growth_rate = 1.3
+        calculated_iter = int(base_iter * (growth_rate ** CURRENT_ZOOM_LEVEL))
+        calculated_iter = max(50, min(5000, calculated_iter))
+        return f"{cache_size} tiles (zoom {CURRENT_ZOOM_LEVEL})", calculated_iter
+    
+    return f"{cache_size} tiles cached", no_update
 
 
-# Register Flask route for tile serving
-@dash.get_app().server.route('/api/fractal-tiles/<int:z>/<int:x>/<int:y>')
+# Flask route handler function (will be registered by app.py)
 def serve_tile(z, x, y):
     """Serve a 256x256 fractal tile as PNG."""
     
-    # Get current parameters
-    max_iter = CURRENT_PARAMS['max_iter']
-    palette = CURRENT_PARAMS['palette']
-    use_cython = CURRENT_PARAMS['use_cython']
+    global CURRENT_ZOOM_LEVEL, CURRENT_PARAMS
     
-    # Create cache key
-    cache_key = f"{z}:{x}:{y}:{max_iter}:{palette}:{use_cython}"
-    
-    # Return cached tile if available
-    if cache_key in TILE_CACHE:
+    try:
+        import time
+        start_time = time.perf_counter()
+        
+        # Track zoom level
+        CURRENT_ZOOM_LEVEL = z
+        
+        # Calculate max_iter based on zoom if auto mode is enabled
+        if CURRENT_PARAMS.get('auto_iter', True):
+            base_iter = 100
+            growth_rate = 1.3
+            max_iter = int(base_iter * (growth_rate ** z))
+            max_iter = max(50, min(5000, max_iter))
+        else:
+            max_iter = CURRENT_PARAMS['max_iter']
+        
+        palette = CURRENT_PARAMS['palette']
+        use_cython = CURRENT_PARAMS['use_cython']
+        
+        # Create cache key
+        cache_key = f"{z}:{x}:{y}:{max_iter}:{palette}:{use_cython}"
+        
+        # Return cached tile if available
+        if cache_key in TILE_CACHE:
+            return send_file(BytesIO(TILE_CACHE[cache_key]), mimetype='image/png')
+        
+        # Generate tile bounds
+        xmin, xmax, ymin, ymax = tile_to_bounds(x, y, z)
+        
+        # Get palette function
+        palette_fn = PALETTE_FUNCTIONS[palette]
+        
+        # Choose implementation and time it
+        compute_start = time.perf_counter()
+        if use_cython:
+            try:
+                # Try optimized Cython first (no Python callbacks, ~20-50x faster)
+                from fraktal.engines.mandelbrot_cy_optimized import mandelbrot_set_cython_optimized
+                
+                # Map palette name to index
+                palette_map = {'simple': 0, 'hot': 1, 'cool': 2}
+                palette_idx = palette_map.get(palette, 0)
+                
+                img_array = mandelbrot_set_cython_optimized(
+                    xmin, xmax, ymin, ymax, 256, 256, max_iter,
+                    palette_choice=palette_idx, bailout=2, p=2
+                )
+                compute_time = time.perf_counter() - compute_start
+                print(f"CYTHON-OPT tile z={z}, iter={max_iter}: {compute_time:.3f}s")
+            except ImportError:
+                try:
+                    # Fallback to old Cython (slow, Python callbacks)
+                    from fraktal.engines.mandelbrot_cy import mandelbrot_set_cython
+                    img_array = mandelbrot_set_cython(
+                        xmin, xmax, ymin, ymax, 256, 256, max_iter,
+                        smooth_iteration_count, simple_index, palette_fn
+                    )
+                    compute_time = time.perf_counter() - compute_start
+                    print(f"CYTHON-OLD tile z={z}, iter={max_iter}: {compute_time:.3f}s")
+                except ImportError:
+                    # Fallback to Numba if no Cython available
+                    img_array = mandelbrot_set_numba(
+                        xmin, xmax, ymin, ymax, 256, 256, max_iter,
+                        smooth_iteration_count, simple_index, palette_fn
+                    )
+                    compute_time = time.perf_counter() - compute_start
+                    print(f"NUMBA (fallback) tile z={z}, iter={max_iter}: {compute_time:.3f}s")
+        else:
+            # Generate Mandelbrot data with all required parameters
+            img_array = mandelbrot_set_numba(
+                xmin, xmax, ymin, ymax, 256, 256, max_iter,
+                smooth_iteration_count, simple_index, palette_fn
+            )
+            compute_time = time.perf_counter() - compute_start
+            print(f"NUMBA tile z={z}, iter={max_iter}: {compute_time:.3f}s")
+        
+        # img_array is already RGB uint8 from mandelbrot_set_numba
+        
+        # Convert to PNG
+        img = Image.fromarray(img_array)
+        buf = BytesIO()
+        img.save(buf, format='PNG', optimize=True)
+        buf.seek(0)
+        
+        # Cache the result
+        TILE_CACHE[cache_key] = buf.getvalue()
+        
         return send_file(BytesIO(TILE_CACHE[cache_key]), mimetype='image/png')
     
-    # Generate tile bounds
-    xmin, xmax, ymin, ymax = tile_to_bounds(x, y, z)
+    except Exception as e:
+        print(f"Error generating tile {z}/{x}/{y}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a blank tile on error
+        blank = Image.new('RGB', (256, 256), color='gray')
+        buf = BytesIO()
+        blank.save(buf, format='PNG')
+        buf.seek(0)
+        return send_file(buf, mimetype='image/png')
+
+
+# Register the route (called from app.py after app creation)
+_route_registered = False
+
+def register_tile_route(server):
+    """Register the tile serving route with the Flask server."""
+    global _route_registered
+    if _route_registered:
+        print("Tile route already registered, skipping")
+        return  # Already registered, skip
     
-    # Choose implementation
-    if use_cython:
-        try:
-            from fraktal.engines.mandelbrot_cy import mandelbrot_set_cython
-            mandelbrot_fn = mandelbrot_set_cython
-        except ImportError:
-            # Fallback to Numba if Cython not available
-            mandelbrot_fn = mandelbrot_set_numba
-    else:
-        mandelbrot_fn = mandelbrot_set_numba
-    
-    # Generate Mandelbrot data
-    data = mandelbrot_fn(xmin, xmax, ymin, ymax, 256, 256, max_iter)
-    
-    # Convert to RGB using selected palette
-    palette_fn = PALETTE_FUNCTIONS[palette]
-    img_array = np.zeros((256, 256, 3), dtype=np.uint8)
-    norm = data.astype(float) / max_iter
-    
-    for i in range(256):
-        for j in range(256):
-            r, g, b = palette_fn(norm[i, j])
-            img_array[i, j] = [r, g, b]
-    
-    # Convert to PNG
-    img = Image.fromarray(img_array)
-    buf = BytesIO()
-    img.save(buf, format='PNG', optimize=True)
-    buf.seek(0)
-    
-    # Cache the result
-    TILE_CACHE[cache_key] = buf.getvalue()
-    
-    return send_file(BytesIO(TILE_CACHE[cache_key]), mimetype='image/png')
+    server.add_url_rule(
+        '/api/fractal-tiles/<int:z>/<int:x>/<int:y>',
+        'serve_fractal_tile',
+        serve_tile
+    )
+    _route_registered = True
+    print("Tile route registered successfully at /api/fractal-tiles/<z>/<x>/<y>")
+    _route_registered = True

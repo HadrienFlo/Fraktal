@@ -139,4 +139,17 @@ clientside_callback(
 
 
 if __name__ == "__main__":
+    # Register Flask routes from pages (use sys.modules to avoid reimporting)
+    import sys
+    
+    # Check for explorer module (could be 'pages.explorer' or 'dash_app.pages.explorer')
+    explorer_module = None
+    if 'pages.explorer' in sys.modules:
+        explorer_module = sys.modules['pages.explorer']
+    elif 'dash_app.pages.explorer' in sys.modules:
+        explorer_module = sys.modules['dash_app.pages.explorer']
+    
+    if explorer_module and hasattr(explorer_module, 'register_tile_route'):
+        explorer_module.register_tile_route(server)
+    
     app.run(debug=True)
