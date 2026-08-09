@@ -198,6 +198,76 @@ We can see $1+\dfrac{1}{\ln p}\ln\left(\dfrac{\ln M}{\ln r_0}\right) = v(r_0)$ a
 The **smooth iteration count** coloring function $u:\mathbb C_N \to \mathbb R$ is defined by:
 $$
 \begin{equation}
-u(r_N) = N + 1 + \dfrac{1}{\ln p}\ln\left(\dfrac{\ln M}{\ln r_N}\right)
+u(z_N) = u(r_N) = N + 1 + \dfrac{1}{\ln p}\ln\left(\dfrac{\ln M}{\ln r_N}\right)
+\end{equation}
+$$
+
+#### Average coloring
+
+We introduce the notation $d = 1 + \dfrac{1}{\ln p}\ln\left(\dfrac{\ln M}{\ln r_N}\right)$ the decimal part of the smooth iteration count. 
+
+We define the **sliding window** $Z_i^m$ of a truncated orbit $\mathcal O_T(c)$, for $i\leq N$ and $m\geq 0$ such that: $Z_i^m = \left\lbrace z_{i-m}, ~ \ldots, ~ z_i\right\rbrace \subset \mathcal O_T(c)$ containing $m$ elements of the truncated orbit before the index $i$.
+
+An **average coloring** $S_i^m$ is a function that evaluates the average value of $t$, called the **addend function** on all sliding windows of size $m$ to index $i$:
+
+$$
+\begin{equation}
+S_i^m(\mathcal O_T(c)) = \dfrac{1}{i-m}\sum_{k=m+1}^it\left[Z_k^m(c)\right]
+\end{equation}
+$$
+
+```
+Truncated orbit: O_T(c) = [ z_0 ][ z_1 ][ z_2 ][ z_3 ][ z_4 ][ z_5 ][ z_6 ] ...
+
+k=4:  Z_4^3 = ┌──────────────────────────────┐
+              │[ z_1 ][ z_2 ][ z_3 ][ z_4 ]│
+              └──────────────────────────────┘
+
+k=5:  Z_5^3 =        ┌──────────────────────────────┐
+                     │[ z_2 ][ z_3 ][ z_4 ][ z_5 ]│
+                     └──────────────────────────────┘
+
+k=6:  Z_6^3 =               ┌──────────────────────────────┐
+                            │[ z_3 ][ z_4 ][ z_5 ][ z_6 ]│
+                            └──────────────────────────────┘
+
+S_6^3 = (1/3)[t(Z_4^3) + t(Z_5^3) + t(Z_6^3)]
+```
+
+We will use the decimal part $d$ of the smooth iteration count to interpolate average values of sliding windows using the Catmull-Rom splines:
+
+$$
+\begin{equation}
+\begin{array}{rcl}
+H_0(d) &:=& \frac12(-d^2+d^3)\\
+H_1(d) &:=& \frac12(d+4d^2-3d^3)\\
+H_2(d) &:=& \frac12(2-5d^2+3d^3)\\
+H_3(d) &:=& \frac12(-d+2d^2-d^3)
+\end{array}
+\end{equation}
+$$
+
+We can now define the **smooth average coloring** with $L_i = \left\lbrace c\in\mathbb C ~;~ |z_{i-1}| < M < |z_{i}|\right\rbrace$ and $B_i = \left\lbrace c\in\mathbb C ~;~ |z_{i-1}| = M\right\rbrace$, for $c\in L_i \cup B_i$, and $m\in\mathbb N$ a constant, and $t:\mathbb C^{m+1}\to\mathbb R$:
+$$
+\begin{equation}
+\begin{array}{rcl}
+u_{(i)}(\mathcal O_T(c)) &=& H_0(d)S_i(\mathcal O_T(c)) &+& H_1(d)S_{i-1}(\mathcal O_T(c))\\ 
+&+& H_2(d)S_{i-2}(\mathcal O_T(c)) &+& H_3(d)S_{i-3}(\mathcal O_T(c))\\
+S_k^m(\mathcal O_T(c)) &=& \dfrac{1}{k-m}\sum_{j=m+1}^kt\left[\mathcal O_T(c)\right]
+\end{array}
+\end{equation}
+$$
+
+#### Triangulare inequality average coloring
+
+Here we will use the above average coloring and use the following addend function:
+
+$$
+\begin{equation}
+\left\lbrace
+\begin{array}{lll}
+&M_n = |z_{n-1}^p| + |c| ~&~ m_n = ||z_{n-1}^p| - |c||\\
+&t : Z_n^1 \longrightarrow \mathbb R ~&~ t = \dfrac{|z_n|-m_n}{M_n-m_n}
+\end{array}\right.
 \end{equation}
 $$
